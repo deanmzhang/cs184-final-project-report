@@ -30,6 +30,10 @@ img {
     max-width: 640px;
 }
 
+.prompt {
+    font-style: italic;
+}
+
 @media (prefers-color-scheme: dark) {
     body {
         color: rgb(250, 250, 250);
