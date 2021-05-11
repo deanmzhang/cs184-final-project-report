@@ -18,6 +18,12 @@ img {
     max-width: 500px;
 }
 
+.video {
+    display: block;
+    margin: 10px auto;
+    width: 500px;
+    height: 347px;
+}
 .box {
     background-color: rgb(210, 248, 248);
     border-radius: 25px;
@@ -43,5 +49,13 @@ img {
 
     .box {
         background-color: rgb(37, 37, 88);
+    }
+
+    a {
+        color: #a0f0f0;
+    }
+
+    a:visited {
+        color: #c00030;
     }
 }

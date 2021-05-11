@@ -10,12 +10,11 @@
 
 <body>
     <h1>Final Project Report: Navier-Stokes GLSL Fluid Simulation and Deep Learning Application</h1>
-    <h2>Praveen Batra Philippe Hansen-Estruch, Dean Zhang, Anthony Ding</h2>
+    <h2>Praveen Batra, Philippe Hansen-Estruch, Dean Zhang, Anthony Ding</h2>
     
     <div class="box">
         <h3>Abstract</h3>
-        <p class="prompt">A paragraph summary of the entire project.</p>
-        <p>In this project, we implemented a GLSL shader pipeline on the staff Vulkan shader graph for rendering fluid dynamics simulations with mouse or programmatic input. Our pipeline used the grid-based approximation to the Navier-Stokes equations outlined in Jos Stam's paper "Real-Time Fluid Dynamics for Games." We also implemented a variational autoencoder (VAE) and MLP dyanmics model for next-frame prediction using one of our fluid simulations as training data to see if a deep learning-based approach could learn fluid dynamics. However, we found that the VAE and dynamics model together learned a degenerate latent space, so we had to use an end-to-end technique where the VAE also predicted the next frame. Ultimately, the machine learning technique was limited by a lack of training data and compute time, but we believe it has some potential.</p>
+        <p>In this project, we implemented a GLSL shader pipeline on the staff Vulkan shader graph for rendering fluid dynamics simulations with mouse or programmatic input. Our pipeline used the grid-based approximation to the Navier-Stokes equations outlined in Jos Stam's paper "Real-Time Fluid Dynamics for Games." We also implemented a variational autoencoder (VAE) and MLP dynamics model for next-frame prediction using one of our fluid simulations as training data to see if a deep learning-based approach could learn fluid dynamics. However, we found that the VAE and dynamics model together learned a degenerate latent space, so we had to use an end-to-end technique where the VAE also predicted the next frame. Ultimately, the machine learning technique was limited by a lack of training data and compute time, but we believe it has some potential.</p>
     </div>
 
     <h3>Technical approach</h3>
@@ -25,7 +24,7 @@
 
 
     <h4>GLSL shader pipeline</h4>
-    
+
     <img src="diagram.png" />
     <p class="caption">A high level diagram of our shader pipeline. An arrow indicates that the output of one shader is sent to the next at the current frame. Each shader also has access to the final velocity ouput, density output, and mouse caching output from the previous timestep. The potential calculation uses three idential shaders in sequence.</p>
 
@@ -50,10 +49,17 @@
     <h5>End-to-end VAE</h5>
 
     <h4>Problems encountered</h4>
-    <p class="prompt">A description of problems encountered and how you tackled them.</p>
+
+   <p>Initially, we tried to implement a fluid simulator based on [4], which tracked individual particles. However, the issue we ran into was that OpenGL shaders are naturally built around per-pixel processing rather than per-particle processing. We tried embedding particle information in the early pixels, and while this worked, it created odd rendering artifacts, possibly due to multiple shader pixels overwriting the same particle. While we could have solved this problem with a separate lower-dimensionality texture for the particles, we chose instead to follow the explicitly grid-based approach of [1], which worked naturally with per-pixel shaders.</p>
+
+   <div class="box">
+    <iframe class="video" src="https://www.youtube.com/embed/GN2pPoMWH2U" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+    <p class="caption">Here is a video of one of our early attempts to render by embedding particle positions in pixel data. There is visible artifacting that we were not able to resolve. Moving to a grid-based fluid simulation resolved this issue.</p>
+   </div>
    
     <h4>Lessons learned</h4>
-    <p class="prompt">A description of lessons learned.</p>
+
+    <p>From this project, we learned that shader-based simulations are easiest when they are pixel-based and rely on simple approximations that ideally can work if each pixel only has access to the previous frame and is computed separately. Most of the performance cost in our shader came when we had to duplicate the potential calculation step because of its reliance on iterative updates across the entire image, but ultimately by using a less compute-intenstive approach we could easily achieve realtime performance.</p>
 
     <div class="box">
         <h3>Results</h3>
@@ -62,10 +68,24 @@
         <h4>GLSL shaders</h4>
         
         <h5>Circle</h5>
+        <iframe class="video" src="https://www.youtube.com/embed/i2npYdZS7y0" frameborder=0 allowfullscreen></iframe>
+        <p class="caption">Here is a simple example where we have a programmatic simulation of mouse input based on the current frame. The virtual "mouse" follows a circular pattern, adding density and velocity to the simulation. Which color density it's adding changes over time.</p>
         
         <h5>Heart</h5>
+        <iframe class="video" src="https://www.youtube.com/embed/Uu0zma-MxmQ" frameborder=0 allowfullscreen></iframe>
+        <p class="caption">Here, we used a different parametric equation for the virtual mouse to trace out a heart shape. As a note, the reason we had to record the renders with a camera instead of a screen recording was due to an issue with Linux graphic drivers that cause the simulation to lag and render incorrectly if we used screen recording. We apologize for the reduced quality of the video.</p>
         
         <h5>Figure 8</h5>
+        <iframe class="video" src="https://www.youtube.com/embed/ehwMI7Iz9P0" frameborder=0 allowfullscreen></iframe>
+        <p class="caption">A third shape we tried tracing is the figure 8.</p>
+
+        <h5>Figure 8 with variable dynamics</h5>
+        <iframe class="video" src="https://www.youtube.com/embed/7VA5OJXalIE" frameborder=0 allowfullscreen></iframe>
+        <p class="caption">Here, we tried something different: setting different parameters (such as diffusion and decay rates) for the different colors. This leads to a noticeable difference between how the red, green, and blue fluids behave.</p>
+
+        <h5>Circle with variable dynamics</h5>
+        <iframe class="video" src="https://www.youtube.com/embed/P9Zf3hhVm4M" frameborder=0 allowfullscreen></iframe>
+        <p class="caption">We also tried rendering the circle with the same color-dependent parameters as above.</p>
 
         <h4>Deep learning</h4>
 
@@ -76,42 +96,24 @@
 
     <h3>References</h3>
 
+    <p>[1] Jos Stam, "Real Time Fluid Dynamics for Games" <a href="http://graphics.cs.cmu.edu/nsp/course/15-464/Spring11/papers/StamFluidforGames.pdf">(link)</a></p>
+
+    <p>[2] Berkeley Gfx shader skeleton <a href="https://github.com/bobcao3/BerkeleyGfx">(link)</a></p>
+
+    <p>[3] VAE implementations in Pytorch <a href="https://github.com/AntixK/PyTorch-VAE">(link)</a></p>
+
+    <p>[4] Macklin and Muller, "Position Based Fluids" <a href="https://mmacklin.com/pbf_sig_preprint.pdf">(link</a></p>
+
     <h3>Contributions</h3>
-    <p class="prompt">A clear description of the work contributed by each team member.</p>
+
+    <p>Praveen worked on the shader pipeline, setting up the mouse caching shader and the potential calculation shader chain.</p>
+
+    <p>Anthony worked on the shader pipeline and creating algorithms for different renders such as the heart shape.</p>
+
+    <p>Dean worked on the shader pipeline, setting up Berkeley Gfx and working on the velocity rendering shader pipeline.</p>
+
+    <p>Philippe worked on setting up the VAE and MLP and training the deep learning next-frame predictor.</p>
 
 </body>
 
 </html>
-
-
-
-
-
-.rect {
-    fill: #0f0f0f;
-    stroke: #f0f0f0;
-}
-
-.label {
-    fill: #f0f0f0;
-}
-
-#tooltip {
-    opacity: 0.2;
-}
-
-#tooltip:hover {
-    opacity: 1;
-}
-
-.rect {
-    fill: #f0f0f0;
-    stroke: #000000;
-    stroke-width: 5; 
-}
-
-.label {
-    font: 14px sans-serif;
-    text-anchor: middle;
-    fill: #000000;
-}
