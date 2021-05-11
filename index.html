@@ -14,9 +14,8 @@
     
     <div class="box">
         <h3>Abstract</h3>
-        <p class="prompt">A 1-2 page summary of the entire project.</p>
-        <p>In this project, we implemented a GLSL shader pipeline on the staff Vulkan shader graph for rendering fluid dynamics simulations with mouse or programmatic input. Our pipeline used the grid-based approximation to the Navier-Stokes equations outlined in Jos Stam's landmark paper "Real-Time Fluid Dynamics for Games."</p>
-        <p>We also implemented a variational autoencoder (VAE) and MLP dyanmics model for next-frame prediction using one of our fluid simulations as training data to see if a deep learning-based approach could learn fluid dynamics. However, we found that the VAE and dynamics model together learned a degenerate latent space, so we had to use an end-to-end technique where the VAE also predicted the next frame. Ultimately, the machine learning technique was limited by a lack of training data and compute time, but we believe it has some potential.</p>
+        <p class="prompt">A paragraph summary of the entire project.</p>
+        <p>In this project, we implemented a GLSL shader pipeline on the staff Vulkan shader graph for rendering fluid dynamics simulations with mouse or programmatic input. Our pipeline used the grid-based approximation to the Navier-Stokes equations outlined in Jos Stam's paper "Real-Time Fluid Dynamics for Games." We also implemented a variational autoencoder (VAE) and MLP dyanmics model for next-frame prediction using one of our fluid simulations as training data to see if a deep learning-based approach could learn fluid dynamics. However, we found that the VAE and dynamics model together learned a degenerate latent space, so we had to use an end-to-end technique where the VAE also predicted the next frame. Ultimately, the machine learning technique was limited by a lack of training data and compute time, but we believe it has some potential.</p>
     </div>
 
     <h3>Technical approach</h3>
@@ -24,7 +23,11 @@
     <h4>Summary</h4>
     <p class="prompt">A 1-2 page summary of your technical approach, techniques used, algorithms implemented, etc. (use references to papers or other resources for further detail). Highlight how your approach varied from the references used (did you implement a subset, or did you change or enhance anything), the unique decisions you made and why.</p>
 
+
     <h4>GLSL shader pipeline</h4>
+    
+    <img src="diagram.png" />
+    <p class="caption">A high level diagram of our shader pipeline. An arrow indicates that the output of one shader is sent to the next at the current frame. Each shader also has access to the final velocity ouput, density output, and mouse caching output from the previous timestep. The potential calculation uses three idential shaders in sequence.</p>
 
     <h5>Density shader</h5>
     
@@ -83,3 +86,32 @@
 
 
 
+
+.rect {
+    fill: #0f0f0f;
+    stroke: #f0f0f0;
+}
+
+.label {
+    fill: #f0f0f0;
+}
+
+#tooltip {
+    opacity: 0.2;
+}
+
+#tooltip:hover {
+    opacity: 1;
+}
+
+.rect {
+    fill: #f0f0f0;
+    stroke: #000000;
+    stroke-width: 5; 
+}
+
+.label {
+    font: 14px sans-serif;
+    text-anchor: middle;
+    fill: #000000;
+}
