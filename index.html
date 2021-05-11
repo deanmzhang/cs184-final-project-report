@@ -15,26 +15,60 @@
     <div class="box">
         <h3>Abstract</h3>
         <p class="prompt">A 1-2 page summary of the entire project.</p>
-        <p>Text</p>
+        <p>In this project, we implemented a GLSL shader pipeline on the staff Vulkan shader graph for rendering fluid dynamics simulations with mouse or programmatic input. Our pipeline used the grid-based approximation to the Navier-Stokes equations outlined in Jos Stam's landmark paper "Real-Time Fluid Dynamics for Games."</p>
+        <p>We also implemented a variational autoencoder (VAE) and MLP dyanmics model for next-frame prediction using one of our fluid simulations as training data to see if a deep learning-based approach could learn fluid dynamics. However, we found that the VAE and dynamics model together learned a degenerate latent space, so we had to use an end-to-end technique where the VAE also predicted the next frame. Ultimately, the machine learning technique was limited by a lack of training data and compute time, but we believe it has some potential.</p>
     </div>
 
     <h3>Technical approach</h3>
     
     <h4>Summary</h4>
     <p class="prompt">A 1-2 page summary of your technical approach, techniques used, algorithms implemented, etc. (use references to papers or other resources for further detail). Highlight how your approach varied from the references used (did you implement a subset, or did you change or enhance anything), the unique decisions you made and why.</p>
-    <p>Text</p>
+
+    <h4>GLSL shader pipeline</h4>
+
+    <h5>Density shader</h5>
     
+    <h5>Mouse tracking shader</h5>
+    
+    <h5>Velocity diffusion shader</h5>
+
+    <h5>Velocity movement (advection) shader</h5>
+    
+    <h5>Velocity potential calculation shaders</h5>
+    
+    <h5>Final velocity shader shader</h5>
+
+    <h4>Deep learning for next-frame prediction</h5>
+
+    <h5>Summary</h5>
+
+    <h5>VAE and dynamics MLP</h5>
+
+    <h5>End-to-end VAE</h5>
+
     <h4>Problems encountered</h4>
     <p class="prompt">A description of problems encountered and how you tackled them.</p>
-    <p>Text</p>
    
     <h4>Lessons learned</h4>
     <p class="prompt">A description of lessons learned.</p>
-    <p>Text</p>
 
     <div class="box">
-    <h3>Results</h3>
-    <p class="prompt">Your final images, animations, video of your system (whichever is relevant). You can include results that you think show off what you built but that you did not have time to go over on presentation day.</p>
+        <h3>Results</h3>
+        <p class="prompt">Your final images, animations, video of your system (whichever is relevant). You can include results that you think show off what you built but that you did not have time to go over on presentation day.</p>
+    
+        <h4>GLSL shaders</h4>
+        
+        <h5>Circle</h5>
+        
+        <h5>Heart</h5>
+        
+        <h5>Figure 8</h5>
+
+        <h4>Deep learning</h4>
+
+        <h5>VAE and MLP dynamics model</h5>
+
+        <h5>End-to-end VAE</h5>
     </div>
 
     <h3>References</h3>
