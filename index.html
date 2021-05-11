@@ -16,104 +16,122 @@
         <h3>Abstract</h3>
         <p>In this project, we implemented a GLSL shader pipeline on the staff Vulkan shader graph for rendering fluid dynamics simulations with mouse or programmatic input. Our pipeline used the grid-based approximation to the Navier-Stokes equations outlined in Jos Stam's paper "Real-Time Fluid Dynamics for Games." We also implemented a variational autoencoder (VAE) and MLP dynamics model for next-frame prediction using one of our fluid simulations as training data to see if a deep learning-based approach could learn fluid dynamics. However, we found that the VAE and dynamics model together learned a degenerate latent space, so we had to use an end-to-end technique where the VAE also predicted the next frame. Ultimately, the machine learning technique was limited by a lack of training data and compute time, but we believe it has some potential.</p>
     </div>
-
+    
     <h3>Technical approach</h3>
     
     <h4>Summary</h4>
     <p class="prompt">A 1-2 page summary of your technical approach, techniques used, algorithms implemented, etc. (use references to papers or other resources for further detail). Highlight how your approach varied from the references used (did you implement a subset, or did you change or enhance anything), the unique decisions you made and why.</p>
-
-
+    
+    
     <h4>GLSL shader pipeline</h4>
-
+    
+    <p>Our shader pipeline was built to emulate the process for simulating fluids described in [1]. Essentially, we tracked three quantities: an array of the current per-pixel, per-color-channel (RGB) fluid density, an array of the current 2D per-pixel velocities, and a 1x1 array of the 2D mouse position. The final shader would just write the densities to the framebuffer as RGB pixels.</p>
+    
     <img src="diagram.png" />
     <p class="caption">A high level diagram of our shader pipeline. An arrow indicates that the output of one shader is sent to the next at the current frame. Each shader also has access to the final velocity ouput, density output, and mouse caching output from the previous timestep. The potential calculation uses three idential shaders in sequence.</p>
-
-    <h5>Density shader</h5>
     
-    <h5>Mouse tracking shader</h5>
+    <p>To render each frame, we would use the previous mouse value and the current mouse location to determine the mouse's one-frame movement (this was why we had a <b>mouse caching</b> shader). Then, we would use the previous frame's density and velocity, as well as the mouse location and movement, for the following shaders:</p>
     
-    <h5>Velocity diffusion shader</h5>
-
-    <h5>Velocity movement (advection) shader</h5>
+    <li>
+        The <b>density processing</b> shader would compute the new density value as follows:
+        <ol>
+            <li>Start with the previous density value.</li>
+            <li>Update the density to be a weighted average of its neighbors' density and its previous value (diffusion step). Notably, while the original paper used a 20-iteration solver to find a stable diffusion, we used an unstable diffusion process because it was faster and did not require multiple shader iterations. We added a decay term to reduce instabillity that will be discussed later.</li>
+            <li>Move the density in the direction of the velocity field (advection step) by setting a pixel's density to a weighted average of its current (diffused) density and its moved density. The moved density is computed by moving backward in the direction of the velocity field at that pixel, and linearly interpolating to find the average density at that location.</li>
+            <li>Add density at the current mouse location, with the colors being added changing linearly over time.</li>
+            <li>Initialize the density if it's the first frame to some fixed value.</li>
+            <li>Attenuate the density multiplicatively. This step was not in the original paper, but it's helpful to avoid potential instabilities and allow the fluid to disperse over time.</li>
+            <li>Clamp the density to be between 0 and 1 since that's the range of valid OpenGL channel values.</li>
+        </ol>
+    </li>
+    <li>
+        The <b>velocity </b> shader pipeline would work as follows:
+        <ol>
+            <li>The <b>velocity diffusion</b> shader computes diffusion on the previous velocity. This is the same process as density diffusion.</li>
+            <li>The <b>velocity advection</b> stage moves the velocity field in the direction of the current velocity. It is also the same as the density field, though velocity is 2D while density is 3D. (Using vectorized math makes this distinction less important.) </li>
+            <li>The next three stages approximate the potential function for the velocity. In the original paper, 20 iterations of a solver are used to calculate the potential function, which is then used to remove the nonconservative parts of the velocity field. This ensures the velocity field is conservative, which is what we would expect for an incompressible fluid. However, because OpenGL shaders are per-pixel, for each iteration of the solver we need an additional shader, since the 3rd iteration needs access to the results of the 2nd iteration for neighboring pixels, for instance. Adding more stages slowed down our renderer, so we ended up using only 3 stages instead of 20 to compute the potential.</li>
+            <li>The <b>final velocity processing stage</b>  first applies the potential-function based projection to remove nonconservative parts of the velocity.</li>
+            <li>It then adds velocity at the current mouse location in the direction of the mouse movement from the previous frame to the current frame. Notably, we only used the mouse's movement for velocity updates, not density updates.</li>
+            <li>Finally, it sets the velocity to 0 if it were the first frame, and it cap svelocity values to be between -10 and 10 to prevent catastrophic results from any potential instability. (We don't decay the velocity, so this could be a concern!)</li>
+        </ol>
+    </li>
     
-    <h5>Velocity potential calculation shaders</h5>
+    <p> One other difference from the original paper is that we did not treat boundaries specially, but since the vast majority of pixels are not at the boundary, we did not see this is necessary for achieving a realistic fluid simulation. </p>
     
-    <h5>Final velocity shader shader</h5>
-
     <h4>Deep learning for next-frame prediction</h5>
-
-    <h5>Summary</h5>
-
-    <h5>VAE and dynamics MLP</h5>
-
-    <h5>End-to-end VAE</h5>
-
-    <h4>Problems encountered</h4>
-
-   <p>Initially, we tried to implement a fluid simulator based on [4], which tracked individual particles. However, the issue we ran into was that OpenGL shaders are naturally built around per-pixel processing rather than per-particle processing. We tried embedding particle information in the early pixels, and while this worked, it created odd rendering artifacts, possibly due to multiple shader pixels overwriting the same particle. While we could have solved this problem with a separate lower-dimensionality texture for the particles, we chose instead to follow the explicitly grid-based approach of [1], which worked naturally with per-pixel shaders.</p>
-
-   <div class="box">
-    <iframe class="video" src="https://www.youtube.com/embed/GN2pPoMWH2U" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
-    <p class="caption">Here is a video of one of our early attempts to render by embedding particle positions in pixel data. There is visible artifacting that we were not able to resolve. Moving to a grid-based fluid simulation resolved this issue.</p>
-   </div>
-   
-    <h4>Lessons learned</h4>
-
-    <p>From this project, we learned that shader-based simulations are easiest when they are pixel-based and rely on simple approximations that ideally can work if each pixel only has access to the previous frame and is computed separately. Most of the performance cost in our shader came when we had to duplicate the potential calculation step because of its reliance on iterative updates across the entire image, but ultimately by using a less compute-intenstive approach we could easily achieve realtime performance.</p>
-
-    <div class="box">
-        <h3>Results</h3>
-        <p class="prompt">Your final images, animations, video of your system (whichever is relevant). You can include results that you think show off what you built but that you did not have time to go over on presentation day.</p>
-    
-        <h4>GLSL shaders</h4>
         
-        <h5>Circle</h5>
-        <iframe class="video" src="https://www.youtube.com/embed/i2npYdZS7y0" frameborder=0 allowfullscreen></iframe>
-        <p class="caption">Here is a simple example where we have a programmatic simulation of mouse input based on the current frame. The virtual "mouse" follows a circular pattern, adding density and velocity to the simulation. Which color density it's adding changes over time.</p>
+        <h5>Summary</h5>
         
-        <h5>Heart</h5>
-        <iframe class="video" src="https://www.youtube.com/embed/Uu0zma-MxmQ" frameborder=0 allowfullscreen></iframe>
-        <p class="caption">Here, we used a different parametric equation for the virtual mouse to trace out a heart shape. As a note, the reason we had to record the renders with a camera instead of a screen recording was due to an issue with Linux graphic drivers that cause the simulation to lag and render incorrectly if we used screen recording. We apologize for the reduced quality of the video.</p>
+        <h5>VAE and dynamics MLP</h5>
         
-        <h5>Figure 8</h5>
-        <iframe class="video" src="https://www.youtube.com/embed/ehwMI7Iz9P0" frameborder=0 allowfullscreen></iframe>
-        <p class="caption">A third shape we tried tracing is the figure 8.</p>
-
-        <h5>Figure 8 with variable dynamics</h5>
-        <iframe class="video" src="https://www.youtube.com/embed/7VA5OJXalIE" frameborder=0 allowfullscreen></iframe>
-        <p class="caption">Here, we tried something different: setting different parameters (such as diffusion and decay rates) for the different colors. This leads to a noticeable difference between how the red, green, and blue fluids behave.</p>
-
-        <h5>Circle with variable dynamics</h5>
-        <iframe class="video" src="https://www.youtube.com/embed/P9Zf3hhVm4M" frameborder=0 allowfullscreen></iframe>
-        <p class="caption">We also tried rendering the circle with the same color-dependent parameters as above.</p>
-
-        <h4>Deep learning</h4>
-
-        <h5>VAE and MLP dynamics model</h5>
-
         <h5>End-to-end VAE</h5>
-    </div>
-
-    <h3>References</h3>
-
-    <p>[1] Jos Stam, "Real Time Fluid Dynamics for Games" <a href="http://graphics.cs.cmu.edu/nsp/course/15-464/Spring11/papers/StamFluidforGames.pdf">(link)</a></p>
-
-    <p>[2] Berkeley Gfx shader skeleton <a href="https://github.com/bobcao3/BerkeleyGfx">(link)</a></p>
-
-    <p>[3] VAE implementations in Pytorch <a href="https://github.com/AntixK/PyTorch-VAE">(link)</a></p>
-
-    <p>[4] Macklin and Muller, "Position Based Fluids" <a href="https://mmacklin.com/pbf_sig_preprint.pdf">(link</a></p>
-
-    <h3>Contributions</h3>
-
-    <p>Praveen worked on the shader pipeline, setting up the mouse caching shader and the potential calculation shader chain.</p>
-
-    <p>Anthony worked on the shader pipeline and creating algorithms for different renders such as the heart shape.</p>
-
-    <p>Dean worked on the shader pipeline, setting up Berkeley Gfx and working on the velocity rendering shader pipeline.</p>
-
-    <p>Philippe worked on setting up the VAE and MLP and training the deep learning next-frame predictor.</p>
-
-</body>
-
-</html>
+        
+        <h4>Problems encountered</h4>
+        
+        <p>Initially, we tried to implement a fluid simulator based on [4], which tracked individual particles. However, the issue we ran into was that OpenGL shaders are naturally built around per-pixel processing rather than per-particle processing. We tried embedding particle information in the early pixels, and while this worked, it created odd rendering artifacts, possibly due to multiple shader pixels overwriting the same particle. While we could have solved this problem with a separate lower-dimensionality texture for the particles, we chose instead to follow the explicitly grid-based approach of [1], which worked naturally with per-pixel shaders.</p>
+        
+        <div class="box">
+            <iframe class="video" src="https://www.youtube.com/embed/GN2pPoMWH2U" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+            <p class="caption">Here is a video of one of our early attempts to render by embedding particle positions in pixel data. There is visible artifacting that we were not able to resolve. Moving to a grid-based fluid simulation resolved this issue.</p>
+        </div>
+        
+        <h4>Lessons learned</h4>
+        
+        <p>From this project, we learned that shader-based simulations are easiest when they are pixel-based and rely on simple approximations that ideally can work if each pixel only has access to the previous frame and is computed separately. Most of the performance cost in our shader came when we had to duplicate the potential calculation step because of its reliance on iterative updates across the entire image, but ultimately by using a less compute-intenstive approach we could easily achieve realtime performance.</p>
+        
+        <div class="box">
+            <h3>Results</h3>
+            <p class="prompt">Your final images, animations, video of your system (whichever is relevant). You can include results that you think show off what you built but that you did not have time to go over on presentation day.</p>
+            
+            <h4>GLSL shaders</h4>
+            
+            <h5>Circle</h5>
+            <iframe class="video" src="https://www.youtube.com/embed/i2npYdZS7y0" frameborder=0 allowfullscreen></iframe>
+            <p class="caption">Here is a simple example where we have a programmatic simulation of mouse input based on the current frame. The virtual "mouse" follows a circular pattern, adding density and velocity to the simulation. Which color density it's adding changes over time.</p>
+            
+            <h5>Heart</h5>
+            <iframe class="video" src="https://www.youtube.com/embed/Uu0zma-MxmQ" frameborder=0 allowfullscreen></iframe>
+            <p class="caption">Here, we used a different parametric equation for the virtual mouse to trace out a heart shape. As a note, the reason we had to record the renders with a camera instead of a screen recording was due to an issue with Linux graphic drivers that cause the simulation to lag and render incorrectly if we used screen recording. We apologize for the reduced quality of the video.</p>
+            
+            <h5>Figure 8</h5>
+            <iframe class="video" src="https://www.youtube.com/embed/ehwMI7Iz9P0" frameborder=0 allowfullscreen></iframe>
+            <p class="caption">A third shape we tried tracing is the figure 8.</p>
+            
+            <h5>Figure 8 with variable dynamics</h5>
+            <iframe class="video" src="https://www.youtube.com/embed/7VA5OJXalIE" frameborder=0 allowfullscreen></iframe>
+            <p class="caption">Here, we tried something different: setting different parameters (such as diffusion and decay rates) for the different colors. This leads to a noticeable difference between how the red, green, and blue fluids behave.</p>
+            
+            <h5>Circle with variable dynamics</h5>
+            <iframe class="video" src="https://www.youtube.com/embed/P9Zf3hhVm4M" frameborder=0 allowfullscreen></iframe>
+            <p class="caption">We also tried rendering the circle with the same color-dependent parameters as above.</p>
+            
+            <h4>Deep learning</h4>
+            
+            <h5>VAE and MLP dynamics model</h5>
+            
+            <h5>End-to-end VAE</h5>
+        </div>
+        
+        <h3>References</h3>
+        
+        <p>[1] Jos Stam, "Real Time Fluid Dynamics for Games" <a href="http://graphics.cs.cmu.edu/nsp/course/15-464/Spring11/papers/StamFluidforGames.pdf">(link)</a></p>
+        
+        <p>[2] Berkeley Gfx shader skeleton <a href="https://github.com/bobcao3/BerkeleyGfx">(link)</a></p>
+        
+        <p>[3] VAE implementations in Pytorch <a href="https://github.com/AntixK/PyTorch-VAE">(link)</a></p>
+        
+        <p>[4] Macklin and Muller, "Position Based Fluids" <a href="https://mmacklin.com/pbf_sig_preprint.pdf">(link</a></p>
+        
+        <h3>Contributions</h3>
+        
+        <p>Praveen worked on the shader pipeline, setting up the mouse caching shader and the potential calculation shader chain.</p>
+        
+        <p>Anthony worked on the shader pipeline and creating algorithms for different renders such as the heart shape.</p>
+        
+        <p>Dean worked on the shader pipeline, setting up Berkeley Gfx and working on the velocity rendering shader pipeline.</p>
+        
+        <p>Philippe worked on setting up the VAE and MLP and training the deep learning next-frame predictor.</p>
+        
+    </body>
+    
+    </html>
