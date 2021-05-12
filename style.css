@@ -24,6 +24,12 @@ img {
     width: 500px;
     height: 347px;
 }
+
+.square {
+    width: 500px;
+    height: 500px;
+}
+
 .box {
     background-color: rgb(210, 248, 248);
     border-radius: 25px;
