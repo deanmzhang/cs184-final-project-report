@@ -14,13 +14,29 @@
     
     <div class="box">
         <h3>Abstract</h3>
-        <p>In this project, we implemented a GLSL shader pipeline on the staff Vulkan shader graph for rendering fluid dynamics simulations with mouse or programmatic input. Our pipeline used the grid-based approximation to the Navier-Stokes equations outlined in Jos Stam's paper "Real-Time Fluid Dynamics for Games." We also implemented a variational autoencoder (VAE) and MLP dynamics model for next-frame prediction using one of our fluid simulations as training data to see if a deep learning-based approach could learn fluid dynamics. However, we found that the VAE and dynamics model together learned a degenerate latent space, so we had to use an end-to-end technique where the VAE also predicted the next frame. Ultimately, the machine learning technique was limited by a lack of training data and compute time, but we believe it has some potential.</p>
+        <p>In this project, we implemented a GLSL shader pipeline on the staff Vulkan shader graph for rendering fluid dynamics simulations for a incompressible homogeneous fluid under the navier stokes equations with mouse or programmatic input. Our pipeline used the grid-based approximation to the Navier-Stokes equations outlined in Jos Stam's paper "Real-Time Fluid Dynamics for Games." We also implemented a variational autoencoder (VAE) and MLP dynamics model for next-frame prediction using one of our fluid simulations as training data to see if a deep learning-based approach could learn fluid dynamics. However, we found that the VAE and dynamics model together learned a degenerate latent space, so we had to use an end-to-end technique where the VAE also predicted the next frame. Ultimately, the machine learning technique was limited by a lack of training data and compute time, but we believe it has some potential.</p>
     </div>
+
+    <br>
+    		<div align="middle">
+
+            <h5>Summary Video of Project</h5>
+            <iframe width="560" height="315" src="https://www.youtube.com/embed/e63auyE9u9U" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            <p class="caption">This is the 2 Minute video covering our work and our results.</p>
+        </div>
+
+     <br>
+
+    <h3>Background and Goals</h3>
+    We want to build a fluid simulator that models what a noncompressable homogeneous fluid would do under the Navier-Stokes equations. We'd then show animations of renderings of the simulator in action as time progresses. 
+    <br>
+    On the Machine Learning side of things, we wanted to see if we could speed up the calculations by approximating some processes with a neural network. We also wanted to see if we could predict future images and renderings with a deep neural network.
+
     
     <h3>Technical approach</h3>
     
     <h4>Summary</h4>
-    <p class="prompt">A 1-2 page summary of your technical approach, techniques used, algorithms implemented, etc. (use references to papers or other resources for further detail). Highlight how your approach varied from the references used (did you implement a subset, or did you change or enhance anything), the unique decisions you made and why.</p>
+    <p class="prompt"> Below we discuss how we implemented the GLSL shaders to predict future fluid positions. Overall, we use a pixel based setup that used multiple shader files to predict future velocities and densities of the fluid and would change the pixel color as a result of this change.</p>
     
     
     <h4>GLSL shader pipeline</h4>
@@ -61,18 +77,22 @@
     <h4>Deep learning for next-frame prediction</h5>
         
         <h5>Summary</h5>
-        On the deep learning side of things, we originally wanted to speed up calculations by training a simple multi layer perceptron (MLP) to learn how to solve the iterative 'potential' calulations much faster. We ran into problems saving data and transfering the learned model from python into C++. Instead, we decided to save image data/renderings from the simulation and attempt to predict future images/renderings based on this data. Essentially, we trained a Variational Auto-Encoder (VAE) to learn a latent space that describes our simulation images. This VAE system was modeled from this paper 'Neural Discrete Representation Learning' by Aaron van den Oord (https://arxiv.org/pdf/1711.00937.pdf) which trains a VQ-VAE for latent space representation of images. From there we would use this latent space to learn a dynamics model to predict future latents which we could then 'decode' into a predicted image which would be the predicted resultant image. This dynamics model was inspired by the paper 'Learning Latent Dynamics for Planning from Pixels' by Danijar Hafner (http://proceedings.mlr.press/v97/hafner19a/hafner19a.pdf).
+        On the deep learning side of things, we originally wanted to speed up calculations by training a simple multi layer perceptron (MLP) to learn how to solve the iterative 'potential' calulations much faster. We ran into problems saving data and transfering the learned model from python into C++. Instead, we decided to save image data/renderings from the simulation and attempt to predict future images/renderings based on this data. Essentially, we trained a Variational Auto-Encoder (VAE) to learn a latent space that describes our simulation images. We borrow a lot from [5] which trains a VQ-VAE for latent space representation of images. From there we would use this latent space to learn a dynamics model to predict future latents which we could then 'decode' into a predicted image which would be the predicted resultant image. This dynamics model was inspired by the paper 'Learning Latent Dynamics for Planning from Pixels' by Danijar Hafner [6].
+
+
+        <h5>Original Intent<h5>
+        	We originally wanted to speed up calculations using neural nets - mainly the projection calculations. We found that collecting data from the simulator was very difficult and porting the weights and biases and setting up a model in C++ was also very difficult. We changed our aim to predicting images as it is much easier for us to collect data, but the models and system became much more complex.
 
         <h5>VAE/Dynamics Model Backgroup and Setup</h5>
-        Simply put, a VAE is a convnet that takes in an image, encodes it to a lower dimension space that should represent it's core and cruicial components of the original image. You can then 'decode' (decoder is also a convnet) this image into the original image. In training, we do exactly this. We input a training image and encode into latent space and then decode into original image space. We then take a loss based on the original input image and the decoded image. This loss can be just the frobenius norm or something more complex to maintain robustness in the latent space. We then backprop through the decoder and encoder to train the system. Ideally, the encoder should learn how to make a meaningful representation for the decoder to decode from. Though sometimes it may turn to a degenerate or useless latent space (we will see this in the first attempt) due to the construction of the setup. 
+        Simply put, a VAE is a convnet that takes in an image, encodes it to a lower dimension space that should represent it's core and cruicial components of the original image. You can then 'decode' (decoder is also a convnet) this image into the original image. In training, we do exactly this. We input a training image and encode into latent space and then decode into original image space. We then take a loss based on the original input image and the decoded image. This loss can be just the frobenius norm or something more complex to maintain robustness in the latent space. We then backprop through the decoder and encoder to train the system. Ideally, the encoder should learn how to make a meaningful representation for the decoder to decode from. Though sometimes it may turn to a degenerate or useless latent space (we will see this in the first attempt) due to the construction of the setup. We largely model our VAE setup from [5].
 
 
 
         <br>
-        As for the dynamics model, it is a simply MLP network that learns the transitions between latents. Dynamics model learns the 'dynamics' of the system - or how our simulator operates. Since our latents have some predescribed pattern per time step, the dynamics model will attempt to learn this transition via a squared error loss. So in summary, the VAE learns the latent space and the dynamic model learns how connected latents relate in effort to predict the future latents. We can then decode from these predicted future latents to see a predicted next step image.
+        As for the dynamics model, it is a simply MLP network that learns the transitions between latents. Dynamics model learns the 'dynamics' of the system - or how our simulator operates. Since our latents have some predescribed pattern per time step, the dynamics model will attempt to learn this transition via a squared error loss. So in summary, the VAE learns the latent space and the dynamic model learns how connected latents relate in effort to predict the future latents. We can then decode from these predicted future latents to see a predicted next step image. We model something similar to what was done in [6].
 
         <br>
-        We used this codebase for VAE models. https://github.com/AntixK/PyTorch-VAE
+        We used this codebase for VAE models. https://github.com/AntixK/PyTorch-VAE or [4].
 
 
         <h5>Training Data</h5>
@@ -81,20 +101,20 @@
 
 
         <h5>VAE and dynamics MLP</h5>
-        In this method, we simply trained the VAE on each individual data point and built a latent space from this. This latent space was not very robust or effective because it mapped to a very similar cluster of points for each image. When training the dynamics model, there wasn't a descripitive enough latent space to use so this method failed to work at all. It just outputted black images rather than concrete predictions. This setup was very similar to the VQ-VAE paper and learning latent dynamics paper, we implemented basically a subset of what this paper mentioned. As the latter paper learned a dynamics model from an already learned latent space, but I assume their latent space was much more robust and helpful. 
+        In this method, we simply trained the VAE on each individual data point and built a latent space from this similar to how [5] does it. This latent space was not very robust or effective because it mapped to a very similar cluster of points for each image. When training the dynamics model, there wasn't a descripitive enough latent space to use so this method failed to work at all. It just outputted black images rather than concrete predictions. This setup was very similar to the VQ-VAE paper and learning latent dynamics paper, we implemented basically a subset of what this paper mentioned. As the latter paper learned a dynamics model from an already learned latent space, but I assume their latent space was much more robust and helpful. 
 
         We believe the issue was a result of the training of the latent space not being robust enough. If we force the system to be end-to-end, the dynamics model/VAE might be forced to produce a better solution that we can then use. 
 
         
         <h5>End-to-end VAE</h5>
-        We decided to change the process of training the VAE into a new setup that differs from the reference papers/material. Instead we will combine both the VAE and the dynamics model together and train them end-to-end. Firstly we encode, then predict the next latent, and then decode and take a reconstructive loss on this. This setup forces our latent space to be more robust and useful for future predictions. Although, it took a very long time to train till proper convergence. This process borrows concepts from the two papers listed above, but makes the fundemental change that we train the dynamics model in unison with the VAE to target our objective. This system worked ok as it predicted next step renders pretty well. Though for longer than one step predictions or for when the shape/color of the simulation changed - our dynamics model could not predict those very well.
+        We decided to change the process of training the VAE into a new setup that differs from the reference papers/material. Instead we will combine both the VAE and the dynamics model together and train them end-to-end. Firstly we encode, then predict the next latent, and then decode and take a reconstructive loss on this. This setup forces our latent space to be more robust and useful for future predictions. Although, it took a very long time to train untill proper convergence. This process borrows concepts from [5] and [6] such as using a VAE and using the latents to model dynamics, but makes the fundemental change that we train the dynamics model in unison with the VAE to target our objective. This system worked ok as it predicted next step renders pretty well. Though for longer than one step predictions or for when the shape/color of the simulation changed - our dynamics model could not predict those very well.
         
         <h4>Problems encountered</h4>
 
         
         <p>Initially, we tried to implement a fluid simulator based on [4], which tracked individual particles. However, the issue we ran into was that OpenGL shaders are naturally built around per-pixel processing rather than per-particle processing. We tried embedding particle information in the early pixels, and while this worked, it created odd rendering artifacts, possibly due to multiple shader pixels overwriting the same particle. While we could have solved this problem with a separate lower-dimensionality texture for the particles, we chose instead to follow the explicitly grid-based approach of [1], which worked naturally with per-pixel shaders.</p>
 
-        <p> On the ML side of things, the main issue was getting convergence and trying to avoid useless latent spaces. Our first method did not work at all in getting usefull predictions due to the setup of the problem. We changed training methods and achieved better results. As for method 2, it would not predict future colors or shapes very well - it also could not predict multi step renders very well either. This would probably require some addition of a more complex model and recurrence in our setup. Though these are common problems in ML.</p>
+        <p> On the ML side of things, the main issue was getting convergence and trying to avoid useless latent spaces. Our first method did not work at all in getting usefull predictions due to the setup of the problem. We changed training methods (as detailed above) and achieved better results by forcing the latent space to be more robust. As for method 2, it would not predict future colors or shapes very well - it also could not predict multi step renders very well either. This would probably require some addition of a more complex model and recurrence in our setup. If we had more time, we'd probably implement more complex systems. Though these are common problems in ML.</p>
         
         <div class="box">
             <iframe class="video" src="https://www.youtube.com/embed/GN2pPoMWH2U" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
@@ -103,7 +123,7 @@
         
         <h4>Lessons learned</h4>
         
-        <p>From this project, we learned that shader-based simulations are easiest when they are pixel-based and rely on simple approximations that ideally can work if each pixel only has access to the previous frame and is computed separately. Most of the performance cost in our shader came when we had to duplicate the potential calculation step because of its reliance on iterative updates across the entire image, but ultimately by using a less compute-intenstive approach we could easily achieve realtime performance. We also learned a lot on deep learning models and how fragile they are. Simple things like degenerate solutions or bad data can through a whole deep net off and make it just a useless connection of weights and biases. Though, more importantly we learned how amazing and beautiful deep nets can be when they work. They can learn such complex relationships and even predict some basic future images like our simulator! Ideally, it would act as the simulator for us but just to see it working barely is very nice. </p>
+        <p>From this project, we learned that shader-based simulations are easiest when they are pixel-based and rely on simple approximations that ideally can work if each pixel only has access to the previous frame and is computed separately. Most of the performance cost in our shader came when we had to duplicate the potential calculation step because of its reliance on iterative updates across the entire image, but ultimately by using a less compute-intenstive approach we could easily achieve realtime performance. We also learned a lot on deep learning models and how fragile they are. Simple things like degenerate solutions or bad data can throw a whole deep net off and make it just a useless connection of weights and biases. Though, more importantly we learned how amazing and beautiful deep nets can be when they work. They can learn such complex relationships and even predict some basic future images like our simulator! Ideally, it would act as the simulator for us but just to see it working barely is very nice. </p>
         
         <div class="box">
             <h3>Results</h3>
@@ -244,7 +264,7 @@
 
         <p>[5] Oord, Vinyals, and Kavukcuoglu, "Neural Discrete Representation Learning" <a href="https://arxiv.org/pdf/1711.00937.pdf">(link)</a></p>
 
-        <p>[4] Hafner, Lillicrap, Fischer, Villegas, Ha, Lee, and Davidson, "Learning Latent Dynamics for Planning from Pixels" <a href="http://proceedings.mlr.press/v97/hafner19a/hafner19a.pdf">(link)</a></p>
+        <p>[6] Hafner, Lillicrap, Fischer, Villegas, Ha, Lee, and Davidson, "Learning Latent Dynamics for Planning from Pixels" <a href="http://proceedings.mlr.press/v97/hafner19a/hafner19a.pdf">(link)</a></p>
         
         <h3>Contributions</h3>
         
